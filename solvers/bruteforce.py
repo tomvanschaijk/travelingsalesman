@@ -1,11 +1,15 @@
 """The brute force algorithm to solve the TSP problem"""
-from typing import Iterator
+from typing import AsyncIterator
 from itertools import permutations
+
+import asyncio
+
 from graph import Graph
 from tsptypes import ShortestPath, AlgorithmResult
 
 
-def brute_force(graph: Graph, distances: dict[tuple[int, int], int]) -> Iterator[AlgorithmResult]:
+async def brute_force(graph: Graph, distances: dict[tuple[int, int],int]
+                      ) -> AsyncIterator[AlgorithmResult]:
     """Solve the TSP problem with a brute force implementation, running through all permutations"""
     unique_permutations = set()
     paths_evaluated = 0
@@ -32,7 +36,9 @@ def brute_force(graph: Graph, distances: dict[tuple[int, int], int]) -> Iterator
             if current_path_length < graph.optimal_cycle_length:
                 graph.optimal_cycle = ShortestPath(current_path_length, vertices)
                 evaluations_until_solved = paths_evaluated
+            await asyncio.sleep(0.0001)
             yield AlgorithmResult(paths_evaluated, evaluations_until_solved)
+
     graph.remove_vertices()
     graph.add_vertices(graph.optimal_cycle.vertices)
     yield AlgorithmResult(paths_evaluated, evaluations_until_solved)

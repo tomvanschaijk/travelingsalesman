@@ -3,14 +3,27 @@ brute force/dynamic programming/genetic algorithm/ant colony optimization method
 import sys
 import locale
 from math import sqrt, factorial
-from typing import Iterator
+from typing import AsyncIterator
+from enum import Enum
+
+import asyncio
+from aiostream import stream
 import pygame as pg
+
 from tsptypes import AlgorithmResult
 from graph import Graph, Node
 from solvers.bruteforce import brute_force
 from solvers.dynamicprogramming import dynamic_programming
 from solvers.geneticalgorithm import genetic_algorithm
 from solvers.antcolonyoptimization import ant_colony
+
+
+class TSPAlgorithm(Enum):
+    """An enum for the algorithms"""
+    BF = 0
+    DP = 1
+    GA = 2
+    ACO = 3
 
 
 WIDTH, HEIGHT = 2500, 1300
@@ -64,52 +77,69 @@ class App():
         self.__graphs: tuple[Graph, Graph, Graph, Graph]
         self.__graph_surfaces: tuple[pg.surface.Surface, pg.surface.Surface,
                                      pg.surface.Surface, pg.surface.Surface]
-        self.__algorithms: list[Iterator]
+        self.__algorithms: list[AsyncIterator | None]
         self.__running: bool
-        self.__finished: list[bool]
+        self.__finished: bool
+        self.__interrupted: bool
+        self.__results: dict[int, AlgorithmResult]
         self.__initialize()
 
-    def run(self):
+    async def run(self):
         """Run the main program loop"""
-        results = [AlgorithmResult()] * 4
         while True:
-            exit_program = self.__handle_events()
-            if exit_program:
-                pg.quit()
-                sys.exit()
+            self.__handle_events()
             if self.__running:
-                for i, algorithm in enumerate(self.__algorithms):
-                    if not self.__finished[i]:
-                        try:
-                            # For brute force and dynamic programming,
-                            # we're not going to try to solve bigger graphs
-                            if i == 0 and len(self.__setup_graph) > BF_CUTOFF:
-                                results[i] = AlgorithmResult(0, 0)
-                                raise StopIteration()
-                            if i == 1 and len(self.__setup_graph) > DP_CUTOFF:
-                                results[i] = AlgorithmResult(0, 0)
-                                raise StopIteration()
-                            results[i] = next(algorithm)
-                        except StopIteration:
-                            self.__finished[i] = True
-                self.__draw_setup_graph()
-                self.__update_labels()
-                self.__draw_graphs()
-                if self.__finished == [True] * len(self.__methods):
-                    self.__show_results(results)
-                    self.__running = False
+                positions_in_resultset = []
+                i = -1
+                for algorithm in self.__algorithms:
+                    i += 1
+                    if algorithm is None:
+                        continue
+                    positions_in_resultset.append(i)
+                algorithms = [algorithm for algorithm in self.__algorithms if algorithm is not None]
+                zipped = stream.ziplatest(*algorithms)
+                merged = stream.map(zipped, lambda x: dict(enumerate(x)))
+                async with merged.stream() as streamer:
+                    async for resultset in streamer:
+                        self.__handle_events()
+                        if self.__interrupted:
+                            break
+
+                        i = 0
+                        for key in resultset:
+                            result = resultset[key]
+                            if result is None:
+                                i += 1
+                                continue
+
+                            self.__results[positions_in_resultset[i]] = result
+                            i += 1
+                        if not self.__finished:
+                            self.__draw_setup_graph()
+                            self.__update_labels()
+                            self.__draw_graphs()
+                            pg.display.flip()
+
+                self.__finished = True
+                self.__running = False
+                if self.__interrupted:
+                    self.__initialize()
+                else:
+                    self.__update_labels()
+                    self.__show_results()
             else:
                 self.__draw_setup_graph()
-                results = [AlgorithmResult()] * 4
             pg.display.flip()
 
     def __initialize(self):
         """Initialize all we need to start running the game"""
         self.__setup_graph = Graph()
         self.__graphs = (Graph(),) * len(self.__methods)
+        self.__algorithms = [None] * len(self.__methods)
         self.__running = False
-        self.__algorithms = []
-        self.__finished = []
+        self.__finished = False
+        self.__interrupted = False
+        self.__results = {}
         self.__distances = {}
         self.__reset_screen()
 
@@ -168,7 +198,7 @@ class App():
                                               else f"{graph.optimal_cycle_length:n}")
             text = f"{self.__methods[i]} (best path length: {optimal_cycle_length})"
             color = (TEXT_LABEL_COLOR if optimal_cycle_length == "unknown"
-                     else TEXT_LABEL_FINISHED_COLOR if self.__finished[i]
+                     else TEXT_LABEL_FINISHED_COLOR if self.__finished
                      else TEXT_LABEL_WORKING_COLOR)
             self.__draw_label(text, i+1, color)
 
@@ -242,15 +272,15 @@ class App():
         y_distance = node1.pos_y - node2.pos_y
         return round(sqrt(x_distance * x_distance + y_distance * y_distance))
 
-    def __show_results(self, results: list[AlgorithmResult]) -> None:
+    def __show_results(self) -> None:
         """Shows the results for all algorithms"""
-        results_display = self.__create_results_display(results)
+        results_display = self.__create_results_display()
         results_display_rect = results_display.get_rect()
         results_display_rect.topleft = (MARGIN, MARGIN)
         self.__screen.set_clip(results_display_rect)
         self.__screen.blit(results_display, results_display_rect)
 
-    def __create_results_display(self, results: list[AlgorithmResult]) -> pg.Surface:
+    def __create_results_display(self) -> pg.Surface:
         """Creates the display for the algorithm results"""
         results_display = pg.Surface(RESULTS_DISPLAY_DIMENSIONS)
         results_display.fill(RESULTS_DISPLAY_COLOR)
@@ -263,21 +293,31 @@ class App():
         text_surface = self.__results_font.render(text, True, RESULTS_TEXT_COLOR)
         results_display.blit(text_surface, (25, 10))
         result_texts = [
-            ("paths evaluated", "evaluations until solved"),
-            ("subcycles evaluated", "evaluations until solved"),
             ("generations evaluated", "generations until best approximation"),
-            ("swarms evaluated", "evaluations until solved")
+            ("swarms evaluated", "evaluations until best approximation"),
+            ("paths evaluated", "evaluations until solved"),
+            ("subcycles evaluated", "evaluations until solved")
         ]
-        for i, (method, result) in enumerate(zip(self.__methods, results)):
-            text_surface = self.__results_font.render(method, True, RESULTS_TEXT_COLOR)
-            results_display.blit(text_surface, (25, 50 + (i * 125)))
-            text = f"{result_texts[i][0]}: {result.count_evaluated:n}"
-            text_surface = self.__results_font.render(text, True, RESULTS_TEXT_COLOR)
-            results_display.blit(text_surface, (50, 50 + (i * 125) + 25))
-            text = f"{result_texts[i][1]}: {result.evaluations_until_solved:n}"
-            text_surface = self.__results_font.render(text, True, RESULTS_TEXT_COLOR)
-            results_display.blit(text_surface, (50, 50 + (i * 125) + 50))
+
+        j = -1
+        for i, method in enumerate(self.__methods):
+            algorithm = TSPAlgorithm(i).value
+            if algorithm not in self.__results:
+                continue
+
+            j += 1
+            result = self.__results[i]
+            if result is not None:
+                text_surface = self.__results_font.render(method, True, RESULTS_TEXT_COLOR)
+                results_display.blit(text_surface, (25, 50 + (j * 125)))
+                text = f"{result_texts[i][0]}: {result.count_evaluated:n}"
+                text_surface = self.__results_font.render(text, True, RESULTS_TEXT_COLOR)
+                results_display.blit(text_surface, (50, 50 + (j * 125) + 25))
+                text = f"{result_texts[i][1]}: {result.evaluations_until_solved:n}"
+                text_surface = self.__results_font.render(text, True, RESULTS_TEXT_COLOR)
+                results_display.blit(text_surface, (50, 50 + (j * 125) + 50))
         return results_display
+
 
     def __determine_ga_parameters(self, node_count: int) -> tuple[int, int]:
         match node_count:
@@ -291,16 +331,20 @@ class App():
             case _ if node_count <= 50: return 5000, 250
         return 25000, 500
 
-    def __handle_events(self)-> bool:
+    def __handle_events(self) -> None :
         """Handling the PyGame events in the main loop"""
         for event in pg.event.get():
             match event.type:
                 case pg.QUIT:
-                    return True
+                    pg.quit()
+                    sys.exit()
                 case pg.KEYDOWN:
                     match event.key:
                         case pg.K_SPACE:
-                            self.__initialize()
+                            if self.__running:
+                                self.__interrupted = True
+                            else:
+                                self.__initialize()
                         case pg.K_RETURN | pg.K_KP_ENTER:
                             if not self.__running:
                                 self.__reset_screen()
@@ -312,14 +356,23 @@ class App():
                                 self.__calculate_distances(nodes)
                                 (pop_size, max_generations) = self.__determine_ga_parameters(
                                                                 len(self.__setup_graph))
-                                self.__algorithms = [
-                                    brute_force(self.__graphs[0], self.__distances),
-                                    dynamic_programming(self.__graphs[1], self.__distances),
-                                    genetic_algorithm(self.__graphs[2], self.__distances, pop_size,
-                                                      max_generations, 50),
-                                    ant_colony(self.__graphs[3], self.__distances, 50, 5)]
-                                self.__finished = [False] * len(self.__algorithms)
+                                node_count = len(nodes)
+                                self.__algorithms = [None] * len(self.__methods)
+                                if node_count <= BF_CUTOFF:
+                                    self.__algorithms[0] = brute_force(self.__graphs[0],
+                                                                       self.__distances)
+                                if node_count <= DP_CUTOFF:
+                                    self.__algorithms[1] = dynamic_programming(self.__graphs[1],
+                                                                               self.__distances)
+                                self.__algorithms[2] = genetic_algorithm(self.__graphs[2],
+                                                                        self.__distances, pop_size,
+                                                                        max_generations, 50)
+                                self.__algorithms[3] = ant_colony(self.__graphs[3],
+                                                                 self.__distances, 50, 5)
+                                self.__finished = False
+                                self.__interrupted = False
                                 self.__running = not self.__running
+                                self.__results = {}
                         case pg.K_w:
                             self.__show_weights = not self.__show_weights
                 case pg.MOUSEBUTTONDOWN:
@@ -335,9 +388,8 @@ class App():
                                               mouse_y - TEXT_SIZE)
                             self.__setup_graph.add_node(Node(len(self.__setup_graph),
                                                              node_x, node_y))
-        return False
 
 
 if __name__ == "__main__":
     app = App()
-    app.run()
+    asyncio.run(app.run())

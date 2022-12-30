@@ -1,12 +1,15 @@
 """The dynamic programming algorithm to solve the TSP problem"""
-from typing import Iterator
+from typing import AsyncIterator
 from sys import maxsize
+
+import asyncio
+
 from graph import Graph
 from tsptypes import ShortestPath, AlgorithmResult
 
 
-def dynamic_programming(graph: Graph, distances: dict[tuple[int, int], int]
-                        ) -> Iterator[AlgorithmResult]:
+async def dynamic_programming(graph: Graph, distances: dict[tuple[int, int], int]
+                              ) -> AsyncIterator[AlgorithmResult]:
     """Solve the TSP problem with dynamic programming"""
     node_count = len(graph)
     start = graph[0].key
@@ -44,6 +47,7 @@ def dynamic_programming(graph: Graph, distances: dict[tuple[int, int], int]
         optimal_cycle = find_optimal_cycle(start, nodes_in_subcycle, memo, distances)
         vertices = create_vertices(optimal_cycle, distances)
         graph.optimal_cycle = ShortestPath(optimal_cycle_length, vertices)
+        await asyncio.sleep(0.0001)
         yield AlgorithmResult(cycles_evaluated, evaluations_until_solved)
 
     optimal_cycle_length = calculate_optimal_cycle_length(start, node_count, memo, distances)

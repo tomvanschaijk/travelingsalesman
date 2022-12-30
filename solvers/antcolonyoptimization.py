@@ -1,14 +1,17 @@
 """The ant colony optimization algorithm to solve the TSP problem"""
-from typing import Iterator
+from typing import AsyncIterator
 from random import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import asyncio
 import numpy as np
+
 from graph import Graph
 from tsptypes import ShortestPath, AlgorithmResult
 
 
-def ant_colony(graph: Graph, distances: dict[tuple[int, int], int],
-               max_swarms: int, max_no_improvement: int,) -> Iterator[AlgorithmResult]:
+async def ant_colony(graph: Graph, distances: dict[tuple[int, int], int],
+                     max_swarms: int, max_no_improvement: int) -> AsyncIterator[AlgorithmResult]:
     """Solve the TSP problem using ant colony optimization"""
     swarms_evaluated = 0
     evaluations_until_solved = 0
@@ -34,6 +37,7 @@ def ant_colony(graph: Graph, distances: dict[tuple[int, int], int],
             graph.optimal_cycle = ShortestPath(best_cycle_length, best_cycle)
             evaluations_until_solved = swarms_evaluated
             swarms_without_improvement = 0
+            await asyncio.sleep(0.0001)
             yield AlgorithmResult(swarms_evaluated, evaluations_until_solved)
         else:
             swarms_without_improvement += 1

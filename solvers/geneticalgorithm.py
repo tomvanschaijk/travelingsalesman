@@ -1,18 +1,19 @@
 """The genetic algorithm to solve the TSP problem"""
-from typing import Iterator
+from typing import AsyncIterator
 from sys import maxsize
 from math import factorial
 from random import shuffle, randint
 import heapq
+
+import asyncio
+
 from graph import Graph
-
-
 from tsptypes import ShortestPath, AlgorithmResult
 
 
-def genetic_algorithm(graph: Graph, distances: dict[tuple[int, int], int],
+async def genetic_algorithm(graph: Graph, distances: dict[tuple[int, int], int],
                       population_size: int, max_generations: int, max_no_improvement: int,
-                      ) -> Iterator[AlgorithmResult]:
+                      ) -> AsyncIterator[AlgorithmResult]:
     """Solve the TSP problem with a genetic algorithm"""
     generations_evaluated = 0
     generations_until_solved = 0
@@ -51,6 +52,7 @@ def genetic_algorithm(graph: Graph, distances: dict[tuple[int, int], int],
             break
         population, cycle_lengths = create_next_population(population, cycle_lengths,
                                                            fitness, distances)
+        await asyncio.sleep(0.0001)
         yield AlgorithmResult(generations_evaluated, generations_until_solved)
     yield AlgorithmResult(generations_evaluated, generations_until_solved)
 
