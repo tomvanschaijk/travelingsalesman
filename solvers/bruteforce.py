@@ -1,33 +1,38 @@
-from sys import maxsize
+"""The brute force algorithm to solve the TSP problem"""
+from typing import Iterator
 from itertools import permutations
-import asyncio
 from graph import Graph
+from tsptypes import ShortestPath, AlgorithmResult
 
 
-async def brute_force(graph: Graph, distances: dict[tuple[int, int], int]):
-    shortest_path = maxsize
+def brute_force(graph: Graph, distances: dict[tuple[int, int], int]) -> Iterator[AlgorithmResult]:
+    """Solve the TSP problem with a brute force implementation, running through all permutations"""
     unique_permutations = set()
-    for i, permutation in enumerate(permutations(graph.nodes.keys())):
-        if i % 500 == 0:
-            await asyncio.sleep(0.001)
+    paths_evaluated = 0
+    evaluations_until_solved = 0
+    start = graph[0].key
+    keys = list(graph.nodes.keys())
+    sub_keys = keys[1:]
+    for permutation in permutations(sub_keys):
+        permutation = (start,) + permutation + (start,)
         if permutation not in unique_permutations and permutation[::-1] not in unique_permutations:
+            paths_evaluated += 1
             unique_permutations.add(permutation)
-            current_pathweight = 0
-            node = permutation[0]
+            current_path_length = 0
+            node = start
             vertices: list[tuple[int, int, int]] = []
             for key in permutation[1:]:
                 distance = distances[(node, key)]
-                current_pathweight += distance
+                current_path_length += distance
                 vertices.append((node, key, distance))
                 node = key
-            current_pathweight += distances[(node, permutation[0])]
-            distance = distances[(node, permutation[0])]
-            vertices.append((node, permutation[0], distance))
 
-            if shortest_path > current_pathweight:
-                shortest_path = current_pathweight
-                graph.remove_vertices()
-                graph.add_vertices(vertices)
-
-            yield shortest_path, False
-    yield shortest_path, True
+            graph.remove_vertices()
+            graph.add_vertices(vertices)
+            if current_path_length < graph.optimal_cycle_length:
+                graph.optimal_cycle = ShortestPath(current_path_length, vertices)
+                evaluations_until_solved = paths_evaluated
+            yield AlgorithmResult(paths_evaluated, evaluations_until_solved)
+    graph.remove_vertices()
+    graph.add_vertices(graph.optimal_cycle.vertices)
+    yield AlgorithmResult(paths_evaluated, evaluations_until_solved)
