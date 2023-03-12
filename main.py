@@ -28,7 +28,7 @@ class TSPAlgorithm(Enum):
 
 WIDTH, HEIGHT = 2500, 1300
 MARGIN = 10
-TEXT_SIZE = 24
+TEXT_SIZE = 26
 NODE_SIZE = 8
 (GRAPH_WIDTH, GRAPH_HEIGHT) = GRAPH_SURFACE_DIMENSIONS = ((WIDTH - (5 * MARGIN)) // 4,
                                                           ((HEIGHT - (2 * TEXT_SIZE)
@@ -54,7 +54,7 @@ BF_CUTOFF, DP_CUTOFF = 8, 17
 class App():
     """Run several algorithms to solve the Traveling Salesman Problem"""
     def __init__(self):
-        locale.setlocale(locale.LC_ALL, 'nl-BE')
+        # locale.setlocale(locale.LC_ALL, 'nl-BE')
         pg.init()
         pg.display.set_caption("Traveling Salesman Problem - comparison of algorithms")
         pg.mouse.set_cursor(pg.SYSTEM_CURSOR_HAND)
