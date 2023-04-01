@@ -11,9 +11,8 @@ from graph import Graph
 from tsptypes import ShortestPath, AlgorithmResult
 
 
-async def genetic_algorithm(graph: Graph, distances: dict[tuple[int, int], int],
-                      population_size: int, max_generations: int, max_no_improvement: int,
-                      ) -> AsyncIterator[AlgorithmResult]:
+async def genetic_algorithm(graph: Graph, distances: dict[tuple[int, int], int], population_size: int,
+                            max_generations: int, max_no_improvement: int) -> AsyncIterator[AlgorithmResult]:
     """Solve the TSP problem with a genetic algorithm"""
     generations_evaluated = 0
     generations_until_solved = 0
@@ -25,6 +24,7 @@ async def genetic_algorithm(graph: Graph, distances: dict[tuple[int, int], int],
     for _ in range(max_generations):
         if generations_without_improvement >= max_no_improvement:
             break
+
         fitness = determine_fitness(cycle_lengths)
         improved = False
         for i, cycle_length in enumerate(cycle_lengths):
@@ -32,6 +32,7 @@ async def genetic_algorithm(graph: Graph, distances: dict[tuple[int, int], int],
                 improved = True
                 optimal_cycle_length = cycle_length
                 optimal_cycle = population[i]
+
         generations_evaluated += 1
         if improved:
             generations_until_solved = generations_evaluated
@@ -69,6 +70,7 @@ def spawn(graph: Graph, population_size: int) -> list[list[int]]:
         permutation = (start,) + tuple(permutation) + (start,)
         if permutation[::-1] not in unique_permutations:
             unique_permutations.add(permutation)
+
     return [list(permutation) for permutation in unique_permutations]
 
 
@@ -89,10 +91,10 @@ def create_next_population(current_population: list[list[int]], cycle_lengths: l
     new_population_cycle_lengths = cycle_lengths + offspring_cycle_lengths
     new_population_fitness = fitness + determine_fitness(offspring_cycle_lengths)
     survivor_candidates = zip(new_population_fitness, new_population)
-    fittest_indices = [i for _, i in heapq.nlargest(population_size, ((x, i)
-                            for i, x in enumerate(survivor_candidates)))]
+    fittest_indices = [i for _, i in heapq.nlargest(population_size, ((x, i) for i, x in enumerate(survivor_candidates)))]
     new_population = [new_population[i] for i in fittest_indices]
     new_population_cycle_lengths = [new_population_cycle_lengths[i] for i in fittest_indices]
+
     return new_population, new_population_cycle_lengths
 
 
@@ -114,6 +116,7 @@ def create_offspring(current_population: list[list[int]], fitness: list[float],
 
         offspring.append(child1)
         offspring.append(child2)
+
     return offspring
 
 
@@ -121,42 +124,46 @@ def get_parent(fitness: list[float]):
     """Get a parent using either tournament selection or biased random selection"""
     if randint(0, 1):
         return tournament_selection(fitness)
+
     return biased_random_selection(fitness)
 
 
 def tournament_selection(fitness: list[float]) -> int:
     """Perform basic tournament selection to get a parent"""
-    start, end = 0, len(fitness)-1
+    start, end = 0, len(fitness) - 1
     candidate1 = randint(start, end)
     candidate2 = randint(start, end)
     while candidate1 == candidate2:
         candidate2 = randint(start, end)
+
     return candidate1 if fitness[candidate1] > fitness[candidate2] else candidate2
 
 
 def biased_random_selection(fitness: list[float]) -> int:
     """Perform biased random selection to get a parent"""
-    random_specimen = randint(0, len(fitness)-1)
+    random_specimen = randint(0, len(fitness) - 1)
     for i, _ in enumerate(fitness):
         if fitness[i] >= fitness[random_specimen]:
             return i
+
     return random_specimen
 
 
 def crossover(parent1: list[int], parent2: list[int]) -> list[int]:
     """Cross-breed a new set of children from the given parents"""
     start = parent1[0]
-    end = parent1[len(parent1)-1]
-    parent1 = parent1[1:len(parent1)-1]
-    parent2 = parent2[1:len(parent2)-1]
-    split = randint(1, len(parent1)-1)
+    end = parent1[len(parent1) - 1]
+    parent1 = parent1[1:len(parent1) - 1]
+    parent2 = parent2[1:len(parent2) - 1]
+    split = randint(1, len(parent1) - 1)
     child: list[int] = [0] * len(parent1)
     for i in range(split):
         child[i] = parent1[i]
 
     remainder = [i for i in parent2 if i not in child]
     for i, data in enumerate(remainder):
-        child[split+i] = data
+        child[split + i] = data
+
     return [start, *child, end]
 
 
@@ -165,24 +172,27 @@ def mutate(child: list[int]) -> list[int]:
     if randint(0, 1):
         child = swap_mutate(child)
     child = rotate_mutate(child)
+
     return child
 
 
 def swap_mutate(child: list[int]) -> list[int]:
     """Mutate the cycle by swapping 2 nodes"""
-    index1 = randint(1, len(child)-2)
-    index2 = randint(1, len(child)-2)
+    index1 = randint(1, len(child) - 2)
+    index2 = randint(1, len(child) - 2)
     child[index1], child[index2] = child[index2], child[index1]
+
     return child
 
 
 def rotate_mutate(child: list[int]) -> list[int]:
     """Mutate the cycle by rotating a part nodes"""
-    split = randint(1, len(child)-2)
+    split = randint(1, len(child) - 2)
     head = child[0:split]
-    mid = child[split:len(child)-1][::-1]
-    tail = child[len(child)-1:]
-    child = head+mid+tail
+    mid = child[split:len(child) - 1][::-1]
+    tail = child[len(child) - 1:]
+    child = head + mid + tail
+
     return child
 
 
@@ -198,6 +208,7 @@ def get_cycle_lengths(population: list[list[int]],
             cycle_length += distances[(node, key)]
             node = key
         cycle_lengths.append(cycle_length)
+
     return cycle_lengths
 
 
@@ -209,6 +220,6 @@ def determine_fitness(cycle_lengths: list[int]) -> list[float]:
 
     # Normalize the fitness
     fitness_sum = sum(fitness)
-    fitness = [f  / fitness_sum for f in fitness]
+    fitness = [f / fitness_sum for f in fitness]
 
     return fitness

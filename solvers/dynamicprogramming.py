@@ -23,27 +23,26 @@ async def dynamic_programming(graph: Graph, distances: dict[tuple[int, int], int
         for subcycle in initialize_combinations(nodes_in_subcycle, node_count):
             if is_not_in(start, subcycle):
                 continue
+
             cycles_evaluated += 1
             # Look for the best next node to attach to the cycle
             for next_node in range(node_count):
                 if next_node == start or is_not_in(next_node, subcycle):
                     continue
+
                 subcycle_without_next_node = subcycle ^ (1 << next_node)
                 min_cycle_length = maxsize
                 for last_node in range(node_count):
-                    if (last_node == start or
-                        last_node == next_node or
-                        is_not_in(last_node, subcycle)):
+                    if (last_node == start or last_node == next_node or is_not_in(last_node, subcycle)):
                         continue
-                    new_cycle_length = (memo[last_node][subcycle_without_next_node]
-                                        + distances[(last_node, next_node)])
+
+                    new_cycle_length = (memo[last_node][subcycle_without_next_node] + distances[(last_node, next_node)])
                     if new_cycle_length < min_cycle_length:
                         min_cycle_length = new_cycle_length
                     memo[next_node][subcycle] = min_cycle_length
 
         evaluations_until_solved = cycles_evaluated
-        optimal_cycle_length = calculate_optimal_cycle_length(start, nodes_in_subcycle,
-                                                            memo, distances)
+        optimal_cycle_length = calculate_optimal_cycle_length(start, nodes_in_subcycle, memo, distances)
         optimal_cycle = find_optimal_cycle(start, nodes_in_subcycle, memo, distances)
         vertices = create_vertices(optimal_cycle, distances)
         graph.optimal_cycle = ShortestPath(optimal_cycle_length, vertices)
@@ -64,7 +63,9 @@ def setup(memo: list, graph: Graph, distances: dict[tuple[int, int], int], start
     for i, node in enumerate(graph):
         if start == node.key:
             continue
+
         memo[i][1 << start | 1 << i] = distances[(start, i)]
+
     return memo
 
 
@@ -72,6 +73,7 @@ def initialize_combinations(nodes_in_subcycle: int, node_count: int) -> list[int
     """Initialize the combinations to consider in the next step of the algorithm"""
     subcycle_list = []
     initialize_combination(0, 0, nodes_in_subcycle, node_count, subcycle_list)
+
     return subcycle_list
 
 
@@ -108,6 +110,7 @@ def calculate_optimal_cycle_length(start: int, node_count: int, memo: list,
         cycle_cost = memo[i][end] + distances[(i, start)]
         if cycle_cost < optimal_cycle_length:
             optimal_cycle_length = cycle_cost
+
     return optimal_cycle_length
 
 
@@ -121,6 +124,7 @@ def find_optimal_cycle(start: int, node_count: int, memo: list,
         index = -1
         for j in range(node_count):
             if j == start or is_not_in(j, state):
+
                 continue
             if index == -1:
                 index = j
@@ -135,13 +139,16 @@ def find_optimal_cycle(start: int, node_count: int, memo: list,
     optimal_cycle.append(start)
     optimal_cycle.reverse()
     optimal_cycle.append(start)
+
     return optimal_cycle
+
 
 def create_vertices(optimal_cycle: list[int], distances: dict[tuple[int, int], int]
                     ) -> list[tuple[int, int, int]]:
     """Transform the list of visited node keys to something our graph can work with"""
     vertices: list[tuple[int, int, int]] = []
     for i in range(1, len(optimal_cycle)):
-        weight = distances[(optimal_cycle[i-1], optimal_cycle[i])]
-        vertices.append((optimal_cycle[i-1], optimal_cycle[i], weight))
+        weight = distances[(optimal_cycle[i - 1], optimal_cycle[i])]
+        vertices.append((optimal_cycle[i - 1], optimal_cycle[i], weight))
+
     return vertices

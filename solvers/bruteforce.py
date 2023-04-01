@@ -8,8 +8,7 @@ from graph import Graph
 from tsptypes import ShortestPath, AlgorithmResult
 
 
-async def brute_force(graph: Graph, distances: dict[tuple[int, int],int]
-                      ) -> AsyncIterator[AlgorithmResult]:
+async def brute_force(graph: Graph, distances: dict[tuple[int, int], int]) -> AsyncIterator[AlgorithmResult]:
     """Solve the TSP problem with a brute force implementation, running through all permutations"""
     unique_permutations = set()
     paths_evaluated = 0

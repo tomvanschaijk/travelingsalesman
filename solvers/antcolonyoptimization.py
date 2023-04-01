@@ -51,29 +51,29 @@ def initialize_pheromones(node_count: int, distances: dict[tuple[int, int], int]
         if i != j:
             pheromones[i, j] = distances[(i, j)]
     for i in range(node_count):
-        row_sum = sum(pheromones[i,:])
+        row_sum = sum(pheromones[i, :])
         for j in range(node_count):
             if i != j:
                 pheromones[i, j] = row_sum / pheromones[i, j]
-        row_sum = sum(pheromones[i,:])
+        row_sum = sum(pheromones[i, :])
         for j in range(node_count):
             if i != j:
                 pheromones[i, j] /= row_sum
     return pheromones
+
 
 def normalize(pheromones: np.ndarray) -> np.ndarray:
     """Normalize the pheromone matrix into probabilities"""
     node_count = pheromones.shape[0]
     for i in range(node_count):
-        row_sum = sum(pheromones[i,:])
+        row_sum = sum(pheromones[i, :])
         for j in range(node_count):
             if i != j:
                 pheromones[i, j] /= row_sum
     return pheromones
 
 
-def swarm_traversal(pheromones: np.ndarray, distances: dict[tuple[int, int], int]
-             ) -> tuple[np.ndarray, list[int]]:
+def swarm_traversal(pheromones: np.ndarray, distances: dict[tuple[int, int], int]) -> tuple[np.ndarray, list[int]]:
     """Traverse the graph with a number of ants equal to the number of nodes"""
     node_count = pheromones.shape[0]
     swarm_size = node_count * node_count
@@ -82,7 +82,7 @@ def swarm_traversal(pheromones: np.ndarray, distances: dict[tuple[int, int], int
     # Traverse the graph swarm_size times
     with ThreadPoolExecutor(max_workers=min(swarm_size, 50)) as executor:
         futures = [executor.submit(traverse, node_count, pheromones, distances)
-                    for i in range(swarm_size)]
+                   for i in range(swarm_size)]
         for i, completed in enumerate(as_completed(futures)):
             cycle_length, cycle = completed.result()
             vertices[i] = cycle
@@ -98,9 +98,9 @@ def traverse(node_count: int, pheromones: np.ndarray,
     visited = set([current_node])
     cycle_length = 0
     vertices = np.array([(0, 0, 0)] * node_count, dtype="i,i,i")
-    for j in range(node_count-1):
-        row_sorted_indices = np.argsort(pheromones[current_node,:])
-        row = np.take(pheromones[current_node,:], row_sorted_indices)
+    for j in range(node_count - 1):
+        row_sorted_indices = np.argsort(pheromones[current_node, :])
+        row = np.take(pheromones[current_node, :], row_sorted_indices)
         cumul = 0
         for k, _ in enumerate(row):
             if row[k] == 0.0:
@@ -111,15 +111,13 @@ def traverse(node_count: int, pheromones: np.ndarray,
         chance = random()
         for k in range(1, len(row)):
             candidate = row_sorted_indices[k]
-            if (row[k-1] < chance <= row[k]
-                and candidate != current_node
-                and candidate not in visited):
+            if (row[k - 1] < chance <= row[k] and candidate != current_node and candidate not in visited):
                 index = candidate
                 break
         # If no suitable index was found, the generated chance was probably too low
         # Pick the first index that's not itself and not visited yet
         if index == -1:
-            for k in range(len(row)-1, 0, -1):
+            for k in range(len(row) - 1, 0, -1):
                 candidate = row_sorted_indices[k]
                 if candidate != current_node and candidate not in visited:
                     index = candidate
@@ -132,7 +130,7 @@ def traverse(node_count: int, pheromones: np.ndarray,
         current_node = index
     # Add the last vertex back to the starting node
     distance = distances[current_node, 0]
-    vertices[node_count-1] = (current_node, 0, distance)
+    vertices[node_count - 1] = (current_node, 0, distance)
     cycle_length += distance
     return cycle_length, vertices
 

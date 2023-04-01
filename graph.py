@@ -31,9 +31,7 @@ class Node():
         return (self.__pos_x, self.__pos_y)
 
     def __eq__(self, other):
-        return (self.__key == other.key and
-                self.__pos_x == other.pos_x and
-                self.__pos_y == other.pos_y)
+        return (self.__key == other.key and self.__pos_x == other.pos_x and self.__pos_y == other.pos_y)
 
     def __ne__(self, other):
         return not self.__eq__(other)
