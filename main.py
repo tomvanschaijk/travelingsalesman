@@ -105,6 +105,7 @@ class App():
 
                         i = 0
                         for key in resultset:
+                            print(f"result for algorithm {algorithms[key]} coming in")
                             result = resultset[key]
                             if result is None:
                                 i += 1
@@ -279,10 +280,10 @@ class App():
         text_surface = self.__results_font.render(text, True, RESULTS_TEXT_COLOR)
         results_display.blit(text_surface, (25, 10))
         result_texts = [
-            ("generations evaluated", "generations until best approximation"),
-            ("swarms evaluated", "evaluations until best approximation"),
             ("paths evaluated", "evaluations until solved"),
-            ("subcycles evaluated", "evaluations until solved")
+            ("subcycles evaluated", "evaluations until solved"),
+            ("generations evaluated", "generations until best approximation"),
+            ("swarms evaluated", "evaluations until best approximation")
         ]
 
         j = -1
